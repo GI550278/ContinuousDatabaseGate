@@ -1,7 +1,9 @@
 import logging
 import sqlite3
 from datetime import datetime
+from pathlib import Path
 
+from TileScheme.TiledExtent import TiledExtent
 from TileScheme.WmtsTile import WmtsTile
 import requests
 
@@ -14,8 +16,9 @@ class ContinuousDB:
         self.ids = ['1', '2']
         self.priority_key = '_'.join(self.ids)
 
-        # @todo: take data from input parameters
-        out_name = 'best_blend_example_clean_v2'
+        dbpath = Path(db_path)
+        out_name = dbpath.name
+        # @todo: take this from config
         self.dst = rf'C:\Users\sguya\Downloads\cesium-starter-app-master\public\blend_example\{out_name}'
 
     def close(self):
@@ -172,15 +175,14 @@ class ContinuousDB:
             # print('perform smooth: ', t)
             tiles = []
             for tt in t:
+                # todo: add polygon if exists in DB boundary
                 tile_data = {'uri': f'http://localhost:8005/tile_path_unique/{tt[2]}/{tt[3]}/{tt[4]}/{tt[1]}',
                              'polygon': []}
 
                 tiles.append(tile_data)
-# 'polygon': list(tile.polygon.exterior.coords),
-            payload = {'tiles': tiles,  'format': 'b3dm',
+            # 'polygon': list(tile.polygon.exterior.coords),
+            payload = {'tiles': tiles, 'format': 'b3dm',
                        'buffer_length': 0}
-
-
 
             r = requests.post('http://localhost:8004/editor/blend',
                               json=payload)
@@ -219,3 +221,25 @@ class ContinuousDB:
         # @todo: optimize
         res = self.cur.execute(f"SELECT * FROM continuous WHERE x={x} and y={y} and z={z}")
         return not len(res.fetchall()) == 0
+
+    def select_range(self, z: int):
+        res = self.cur.execute(f"SELECT min(x),min(y), max(x),max(y) FROM continuous WHERE z={z}")
+        t = TiledExtent(*list(res.fetchall()[0]), z)
+        return t
+
+    def select_all(self):
+        res = self.cur.execute(f"SELECT * FROM continuous")
+        return res.fetchall()
+
+    def save_boundary(self, tile: WmtsTile, boundary: str):
+        time_str = self.default_date
+        id = self.default_id
+        x = tile.x
+        y = tile.y
+        z = tile.z
+
+        self.cur.execute(f"""
+                        INSERT INTO boundary VALUES
+                            (julianday('{time_str}'), '{id}', {x},{y},{z},{boundary})
+                        """)
+        self.con.commit()

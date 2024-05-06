@@ -51,8 +51,12 @@ def tile_path(x: int, y: int, z: int):
     db = ContinuousDB(config.params['source'])
     path = db.select_path_combine(x, y, z)
     # path = db.select_path_full_dress(x, y, z)
-
+    # 156184 not z == 17 or y == 42564
+    # if not (y == 42566 and x == 156184):
+    # path = db.select_tile_path_unique(x, y, z, 1)
     print('TILE PATH:', path)
+    # else:
+    #     path = None
     if path is None:
         return Response(status_code=404, headers={
             "Access-Control-Allow-Origin": config.params['Allow-Origin']
